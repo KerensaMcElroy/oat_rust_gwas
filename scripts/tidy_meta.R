@@ -25,7 +25,10 @@ lanes <- read_excel(path = 'data/Figueroa_Project_006_NovaSeq_Summary.xlsx',
                       skip = 11, col_names = headers) %>%
   clean_names() %>%
   separate(sample, c('year', 'remainder'),
-           remove = FALSE, sep = "[:alpha:]")
+           remove = FALSE, sep = "[:alpha:]") %>%
+  mutate(year = case_when(as.numeric(year) <= 20 ~ str_c('20', year),     #reformat for later coalesce with SA
+                          as.numeric(year) > 20 & as.numeric <= 99 ~ str_c('19', year))) %>%
+  mutate(year = as.numeric(year)) 
 
 #read in South African data and clean names to match lane df
 
@@ -37,3 +40,13 @@ SA <- read_excel(path = 'data/BoshoffWHP_OatCrownRust_SA2018_1.xlsx', skip = 1) 
 setdiff(SA$sample_id, lanes$sample)
 
 #Pca75 not in lanes df. PCA84-1-1 ambiguous, awaiting further info
+
+merged <- full_join(lanes, SA, by = c("sample" = "sample_id")) %>%
+  mutate(year = coalesce(year.x, year.y)) %>%
+  select(-year.x, -year.y) %>%
+  mutate(pustule = case_when(str_detect(sample, "[:digit:]{2}[:alpha:]{2}[:digit:]+-[123]$") ~
+                               str_extract(sample, '[123]$')))
+
+[:digit:]{2}[:alpha:]{2}[:digit:]+-[123]$
+str(SA)
+str(lanes)
