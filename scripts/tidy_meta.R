@@ -47,6 +47,19 @@ merged <- full_join(lanes, SA, by = c("sample" = "sample_id")) %>%
   mutate(pustule = case_when(str_detect(sample, "[:digit:]{2}[:alpha:]{2}[:digit:]+-[123]$") ~
                                str_extract(sample, '[123]$')))
 
-[:digit:]{2}[:alpha:]{2}[:digit:]+-[123]$
-str(SA)
-str(lanes)
+
+#Import and clean phenotype data
+#note: scores are on scale from 0 to 9, and are the mean of 
+#two observations. Individual values for each observation are lower in 
+#the excel sheet.
+
+phenos <- read_excel(path = 'data/2016_Pca_isolates_phenotype_completeset.xlsx',
+                    sheet = 3, n_max = 41) %>%
+  column_to_rownames(var = "Differential Line") %>%
+  select(-1) %>%
+  t() %>%
+  as.data.frame() %>%
+  rownames_to_column(var = "sample") %>%
+  as_tibble()
+
+  
