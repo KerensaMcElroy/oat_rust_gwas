@@ -71,5 +71,19 @@ merged <- full_join(lanes, SA, by = c("sample" = "sample_id")) %>%
   mutate(state = case_when(str_detect(sample,"[:digit:]{2}[:alpha:]{2,4}[:digit:]*-[:digit:]+$") ~
                              str_extract(sample,'[:alpha:]{2}'))) %>% 
   mutate(buckthorn = if_else(str_detect(sample,"[:digit:]{2}[:alpha:]{2}BT-[:digit:]+$"), TRUE, FALSE)) %>%
+  mutate(buckthorn = if_else(year == 2016 & !is.na(state), TRUE, buckthorn)) %>%
   full_join(phenos, by = "sample")
+
+#melania's existing data for the published 60 isolates from 1990 and 2015
+
+pub <- read_excel(path = 'data/TableS1_final.xlsx', skip = 1) %>%
+  mutate(year = str_extract(`Isolate ID`, '^[:digit:]{2}')) %>%
+  mutate(year = case_when(as.numeric(year) <= 20 ~ str_c('20', year),     #reformat for later coalesce with SA
+                          as.numeric(year) > 20 & as.numeric(year) <= 99 ~ str_c('19', year))) %>%
+  mutate(year = as.numeric(year)) %>%
+  mutate(state = str_extract(`Isolate ID`,'[:alpha:]{2}')) %>%
+  mutate(buckthorn = if_else(str_detect(`Location`,"Buckthorn") | str_detect(Location, "BT"), TRUE, FALSE))
+  
+#merge this in again...
+merged <- full_join(merged, pub, by =c("sample" = "Isolate ID", "year", "state", "buckthorn"))
 
