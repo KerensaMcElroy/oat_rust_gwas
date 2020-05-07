@@ -15,10 +15,10 @@
   - download script in github (done)
 
 * sequence reads
- - 60 isolates 2015/1990 raw
- - 60 isolates 2015/1990 aligned
- - 80 isolates buckthorn nursery 2016/17/18 raw
- - 50 isolates 2017 raw
+  - 60 isolates 2015/1990 raw
+  - 60 isolates 2015/1990 aligned
+  - 80 isolates buckthorn nursery 2016/17/18 raw
+  - 50 isolates 2017 raw
  
 * metadata
  - 60 isolates 2015/1990
