@@ -21,19 +21,19 @@
   - 50 isolates 2017 raw
  
 * metadata
- - 60 isolates 2015/1990
- - 80 isolates buckthorn nursery 2016/17/18
- - 50 isolates 2017
+  - 60 isolates 2015/1990
+  - 80 isolates buckthorn nursery 2016/17/18
+  - 50 isolates 2017
  
 * phenotypes
- - 60 isolates 2015/1990
- - 80 isolates buckthorn nursery 2016/17/18
- - 50 isolates 2017
+  - 60 isolates 2015/1990
+  - 80 isolates buckthorn nursery 2016/17/18
+  - 50 isolates 2017
  
 * snps 12SD80
- - 60 isolates 2015/1990 
- - 80 isolates buckthorn nursery 2016/17/18
- - 50 isolates 2017
+  - 60 isolates 2015/1990 
+  - 80 isolates buckthorn nursery 2016/17/18
+  - 50 isolates 2017
 
 * review allele frequency plots to discard contaminated isolates
 
@@ -42,11 +42,11 @@
 ### Read processing
 
 * establish snakemake pipeline
- - establish bioinformatics software and settings consistant with 12SD80 pipeline (trimmomatic > bwa > filter > dedup > freebayes) (done)
- - complete Daniel Collin's snakemake training (done)
- - work through WGS snakemake tutorial
- - write and test snakemake pipeline to align small number of files to 12NC29 and call SNPs
- - run full analysis on all read files against 12NC29 reference using snakemake pipeline
+  - establish bioinformatics software and settings consistant with 12SD80 pipeline (trimmomatic > bwa > filter > dedup > freebayes) (done)
+  - complete Daniel Collin's snakemake training (done)
+  - work through WGS snakemake tutorial
+  - write and test snakemake pipeline to align small number of files to 12NC29 and call SNPs
+  - run full analysis on all read files against 12NC29 reference using snakemake pipeline
 
 ### Analysis
 
@@ -62,14 +62,14 @@
 * closely examine identified regions for candidate new Avr genes (e.g. effectorP, comparative genomics with other rusts, etc)
 
 * explore and compare alternative GWAS approaches
-- Machine learning
-- reference free e.g. kmers
+  - Machine learning
+  - reference free e.g. kmers
 
 
 ### Write up
 
-- draft manuscript
-- feedback
-- submission
+* draft manuscript
+* feedback
+* submission
 
 
