@@ -87,3 +87,14 @@ pub <- read_excel(path = 'data/TableS1_final.xlsx', skip = 1) %>%
 #merge this in again...
 merged <- full_join(merged, pub, by =c("sample" = "Isolate ID", "year", "state", "buckthorn"))
 
+#phenotype data for 1990/2015
+pub_pheno <- read_tsv(file = 'data/1990_2015_phenotypes.txt') %>%
+  filter(rowSums(is.na(.)) != ncol(.)) %>%
+  column_to_rownames(var = "Differential Line") %>%
+  t() %>%
+  as.data.frame() %>%
+  rownames_to_column(var = "sample") %>%
+  as_tibble() %>%
+  mutate(sample = str_extract(sample, pattern = '[:alnum:]+-[12345]')) %>%
+  group_by(sample)%>%
+  summarise_all(mean)
