@@ -47,20 +47,6 @@ setdiff(SA$sample_id, lanes$sample)
 #Pca75 not in lanes df. PCA84-1-1 ambiguous, awaiting further info
 #Update 21.4.19: ignoring PCA84-1-1 for now as it is a SA isolate.
 
-#Import and clean phenotype data
-#note: scores are on scale from 0 to 9, and are the mean of 
-#two observations. Individual values for each observation are lower in 
-#the excel sheet.
-
-phenos <- read_excel(path = 'data/2016_Pca_isolates_phenotype_completeset.xlsx',
-                    sheet = 3, n_max = 41) %>%
-  column_to_rownames(var = "Differential Line") %>%
-  select(-1) %>%
-  t() %>%
-  as.data.frame() %>%
-  rownames_to_column(var = "sample") %>%
-  as_tibble()
-
 #merging data so far
 
 merged <- full_join(lanes, SA, by = c("sample" = "sample_id")) %>%
@@ -73,6 +59,7 @@ merged <- full_join(lanes, SA, by = c("sample" = "sample_id")) %>%
   mutate(buckthorn = if_else(str_detect(sample,"[:digit:]{2}[:alpha:]{2}BT-[:digit:]+$"), TRUE, FALSE)) %>%
   mutate(buckthorn = if_else(year == 2016 & !is.na(state), TRUE, buckthorn)) %>%
   full_join(phenos, by = "sample")
+
 
 #melania's existing data for the published 60 isolates from 1990 and 2015
 
@@ -87,6 +74,21 @@ pub <- read_excel(path = 'data/TableS1_final.xlsx', skip = 1) %>%
 #merge this in again...
 merged <- full_join(merged, pub, by =c("sample" = "Isolate ID", "year", "state", "buckthorn"))
 
+
+#Import and clean phenotype data
+#note: scores are on scale from 0 to 9, and are the mean of 
+#two observations. Individual values for each observation are lower in 
+#the excel sheet.
+
+phenos <- read_excel(path = 'data/2016_Pca_isolates_phenotype_completeset.xlsx',
+                     sheet = 3, n_max = 41) %>%
+  column_to_rownames(var = "Differential Line") %>%
+  select(-1) %>%
+  t() %>%
+  as.data.frame() %>%
+  rownames_to_column(var = "sample") %>%
+  as_tibble()
+
 #phenotype data for 1990/2015
 pub_pheno <- read_tsv(file = 'data/1990_2015_phenotypes.txt') %>%
   filter(rowSums(is.na(.)) != ncol(.)) %>%
@@ -98,3 +100,8 @@ pub_pheno <- read_tsv(file = 'data/1990_2015_phenotypes.txt') %>%
   mutate(sample = str_extract(sample, pattern = '[:alnum:]+-[12345]')) %>%
   group_by(sample)%>%
   summarise_all(mean)
+
+phenos <- full_join(phenos, pub_pheno)
+#merge in the phenotype data
+
+merged <- full_join(merged, phenos)
