@@ -89,6 +89,9 @@ phenos <- read_excel(path = 'data/2016_Pca_isolates_phenotype_completeset.xlsx',
   rownames_to_column(var = "sample") %>%
   as_tibble()
 
+names(phenos) <- str_replace_all(names(phenos), "\\s","")
+
+
 #phenotype data for 1990/2015
 pub_pheno <- read_tsv(file = 'data/1990_2015_phenotypes.txt') %>%
   filter(rowSums(is.na(.)) != ncol(.)) %>%
@@ -101,7 +104,48 @@ pub_pheno <- read_tsv(file = 'data/1990_2015_phenotypes.txt') %>%
   group_by(sample)%>%
   summarise_all(mean)
 
-phenos <- full_join(phenos, pub_pheno)
-#merge in the phenotype data
+names(pub_pheno) <- str_replace_all(names(pub_pheno), "\\s","")
 
+#phenotype data for 2017-2018
+pheno_2018 <- read_excel(path = "data/2017-2018_BT_isolates.xlsx", 
+                         sheet = 3, n_max = 41) %>%
+  column_to_rownames(var = "Differential Line") %>%
+  select(-1) %>%
+  t() %>%
+  as.data.frame() %>%
+  rownames_to_column(var = "sample") %>%
+  as_tibble() 
+
+names(pheno_2018) <- str_replace_all(names(pheno_2018), "\\s","")
+
+#50 2017 isolates
+
+recode_data <- function(x) (as.numeric(case_when(
+  x == "0" ~ "0",
+  x == "0;" ~ "1",
+  x == ";" ~ "2",
+  x == ";C" ~ "3",
+  x == "1;" ~ "4",
+  x == "1" ~ "5",
+  x == "2" ~ "6",
+  x == "3" ~ "7",
+  x == "3+" ~ "8",
+  x == "4" ~ "9"
+)))
+pheno_2017 <- read_excel(path = 'data/Copy of OCR2017Survey.xlsx') %>%
+  unite("sample", "Year","State","Isolate", sep = '') %>%
+  mutate(sample = str_remove(sample, "^20")) %>%
+  mutate_at(vars(-sample), recode_data)
+
+
+names(pheno_2017) <- str_replace_all(names(pheno_2017), "\\s","")
+
+
+phenos <- full_join(phenos, pub_pheno) %>%
+  full_join(pheno_2018) %>%
+  clean_names()
+
+
+
+#merge in the phenotype data
 merged <- full_join(merged, phenos)
