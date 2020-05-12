@@ -30,7 +30,7 @@
   - 80 isolates buckthorn nursery 2016/17/18 (data/2016_Pca_isolates_phenotype_completeset.xlsx, data/2017-2018_BT_isolates.xlsx) 
       * 2016 (done)
       * 2017/18 requires importing and averaging 9 point scale replicate results (due 08.05.2020 - done)
-  - 50 isolates 2017 (data/Copy of OCR2017Survey.xlsx) (only subset sequenced? And only one replicate? Check with M) (due 08.05.2020)
+  - 50 isolates 2017 (data/Copy of OCR2017Survey.xlsx) (only subset sequenced? And only one replicate? Check with M) (due 08.05.2020 - done, two missing)
  
 * snps 12SD80
   - 60 isolates 2015/1990 

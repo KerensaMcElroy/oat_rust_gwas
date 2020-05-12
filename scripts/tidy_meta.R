@@ -43,6 +43,7 @@ SA <- read_excel(path = 'data/BoshoffWHP_OatCrownRust_SA2018_1.xlsx', skip = 1) 
 SA[11,2] <- "Pca84-1_H07_S85"
 SA[32,2] <- "PCA84-1-1_B03_S102"
 setdiff(SA$sample_id, lanes$sample)
+no_SA <- setdiff(lanes$sample, SA$sample_id)
 
 #Pca75 not in lanes df. PCA84-1-1 ambiguous, awaiting further info
 #Update 21.4.19: ignoring PCA84-1-1 for now as it is a SA isolate.
@@ -57,8 +58,7 @@ merged <- full_join(lanes, SA, by = c("sample" = "sample_id")) %>%
   mutate(state = case_when(str_detect(sample,"[:digit:]{2}[:alpha:]{2,4}[:digit:]*-[:digit:]+$") ~
                              str_extract(sample,'[:alpha:]{2}'))) %>% 
   mutate(buckthorn = if_else(str_detect(sample,"[:digit:]{2}[:alpha:]{2}BT-[:digit:]+$"), TRUE, FALSE)) %>%
-  mutate(buckthorn = if_else(year == 2016 & !is.na(state), TRUE, buckthorn)) %>%
-  full_join(phenos, by = "sample")
+  mutate(buckthorn = if_else(year == 2016 & !is.na(state), TRUE, buckthorn)) 
 
 
 #melania's existing data for the published 60 isolates from 1990 and 2015
@@ -83,7 +83,6 @@ merged <- full_join(merged, pub, by =c("sample" = "Isolate ID", "year", "state",
 phenos <- read_excel(path = 'data/2016_Pca_isolates_phenotype_completeset.xlsx',
                      sheet = 3, n_max = 41) %>%
   column_to_rownames(var = "Differential Line") %>%
-  select(-1) %>%
   t() %>%
   as.data.frame() %>%
   rownames_to_column(var = "sample") %>%
@@ -110,7 +109,6 @@ names(pub_pheno) <- str_replace_all(names(pub_pheno), "\\s","")
 pheno_2018 <- read_excel(path = "data/2017-2018_BT_isolates.xlsx", 
                          sheet = 3, n_max = 41) %>%
   column_to_rownames(var = "Differential Line") %>%
-  select(-1) %>%
   t() %>%
   as.data.frame() %>%
   rownames_to_column(var = "sample") %>%
@@ -160,7 +158,8 @@ phenos <- full_join(phenos, pub_pheno) %>%
   full_join(pheno_2018) %>%
   full_join(pheno_2017) 
 
-
+setdiff(no_SA, phenos$sample)
+#[1] "17FL16-1" "17FL26-3" "17MNBT-1" "203-1"
 
 #merge in the phenotype data
 merged <- left_join(merged, phenos)
