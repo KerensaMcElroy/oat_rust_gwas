@@ -101,7 +101,7 @@ pub_pheno <- read_tsv(file = 'data/1990_2015_phenotypes.txt') %>%
   rownames_to_column(var = "sample") %>%
   as_tibble() %>%
   mutate(sample = str_extract(sample, pattern = '[:alnum:]+-[12345]')) %>%
-  group_by(sample)%>%
+  group_by(sample) %>%
   summarise_all(mean)
 
 names(pub_pheno) <- str_replace_all(names(pub_pheno), "\\s","")
@@ -130,22 +130,37 @@ recode_data <- function(x) (as.numeric(case_when(
   x == "2" ~ "6",
   x == "3" ~ "7",
   x == "3+" ~ "8",
-  x == "4" ~ "9"
-)))
+  x == "4" ~ "9",
+  x == "-" ~ NA_character_
+))) 
+
+
+pheno_2017_rep <- read_excel(path = 'data/Copy of OCR2017Survey.xlsx') %>%
+  unite("sample", "Year","State","Isolate", sep = '') %>%
+  mutate(sample = str_remove(sample, "^20")) %>%
+  mutate_at(vars(-sample), recode_data) %>%
+  group_by(sample) %>%
+  filter(n() > 1) %>%
+  summarise_all(mean, na.rm=TRUE)
+
 pheno_2017 <- read_excel(path = 'data/Copy of OCR2017Survey.xlsx') %>%
   unite("sample", "Year","State","Isolate", sep = '') %>%
   mutate(sample = str_remove(sample, "^20")) %>%
-  mutate_at(vars(-sample), recode_data)
-
+  mutate_at(vars(-sample), recode_data) %>%
+  full_join(pheno_2017_rep) 
 
 names(pheno_2017) <- str_replace_all(names(pheno_2017), "\\s","")
 
+phenos <- clean_names(phenos)
+pub_pheno <- clean_names(pub_pheno)
+pheno_2017 <- clean_names(pheno_2017)
+pheno_2018 <- clean_names(pheno_2018)
 
 phenos <- full_join(phenos, pub_pheno) %>%
   full_join(pheno_2018) %>%
-  clean_names()
+  full_join(pheno_2017) 
 
 
 
 #merge in the phenotype data
-merged <- full_join(merged, phenos)
+merged <- left_join(merged, phenos)
