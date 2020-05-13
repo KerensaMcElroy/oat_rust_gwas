@@ -33,9 +33,9 @@
   - 50 isolates 2017 (data/Copy of OCR2017Survey.xlsx) (only subset sequenced? And only one replicate? Check with M) (due 08.05.2020 - done, two missing)
  
 * snps 12SD80
-  - 60 isolates 2015/1990 
-  - 80 isolates buckthorn nursery 2016/17/18
-  - 50 isolates 2017 
+  - 60 isolates 2015/1990 (subset of data/all_isolates_12SD80.filter.vcf, data/all_isolates_12SD80.biallelic.maf_missing_filter.vcf)
+  - 80 isolates buckthorn nursery 2016/17/18 (data/Buckthorn_variants.vcf.tar.gz)
+  - 50 isolates 2017 (subset of data/SA_SOU_NOR_variants.vcf.tar.gz)
   - request and check md5sums (due 08.05.2020)
 
 * review allele frequency plots to discard contaminated isolates (due 13.05.2020)
