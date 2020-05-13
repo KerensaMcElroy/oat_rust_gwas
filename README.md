@@ -38,9 +38,9 @@
   - 50 isolates 2017 
   - request and check md5sums (due 08.05.2020)
 
-* review allele frequency plots to discard contaminated isolates (due 13.05.2020)
+* review allele frequency plots to discard contaminated isolates (due 13.05.2020 - done)
 
-* tidy and merge all metadata and phenotype data using R script (80% complete - due 13.05.2020)
+* tidy and merge all metadata and phenotype data using R script (80% complete - due 13.05.2020 - done)
 
 ### Read processing
 
@@ -72,7 +72,7 @@
 ### Write up
 
 * draft manuscript
-  - create google doc for manuscript (due 08.05.2020)
+  - create google doc for manuscript (due 08.05.2020 - done)
   - update methods (ongoing - due 10.07.2020)
   - prepare figures (ongoing - due 10.07.2020)
   - reference documents as read / add to introduction (ongoing - due 17.07.2020)

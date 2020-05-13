@@ -163,3 +163,21 @@ setdiff(no_SA, phenos$sample)
 
 #merge in the phenotype data
 merged <- left_join(merged, phenos)
+
+#remove contaminated isolates
+#see file docs/kickingout_contaminants.pptx
+#to be removed:
+#17MNBT-1
+#17MNBT-22
+#17MNBT-25
+#18MNBT-48
+
+#question mark 17FL24-2, 17ND156-3. Will remove them
+
+no_contam <- merged %>% 
+  filter(!sample %in% c('17MNBT-1', '17MNBT-22', 
+                        '17MNBT-25', '18MNBT-48',
+                        '17FL24-2', '17ND156-3'))
+setdiff(merged$sample, no_contam$sample)
+#[1] "17FL24-2"  "17MNBT-1"  "17MNBT-22" "17MNBT-25" "17ND156-3"
+#[6] "18MNBT-48"
