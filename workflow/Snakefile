@@ -1,14 +1,21 @@
 configfile: "config.yaml"
-workdir: '/datasets/work/AF_CROWN_RUST_WORK/2020-02-28_GWAS'
+workdir: config["work"] 
 rule all:
     input:
         expand("analysis/fastqc_raw/{sample}_R{read}_fastqc.html", sample=config["samples"],read=config["reads"])
+
+rule clean:
+    shell: 
+        "rm -rf analysis logs"
 
 rule fastqc_raw:
     input:
         'data/{sample}_R{read}.fastq.gz'
     output:
         'analysis/fastqc_raw/{sample}_R{read}_fastqc.html'
+    log:
+        err = 'logs/fastqc_raw/{sample}_R{read}.out',
+        out = 'logs/fastqc_raw/{sample}_R{read}.err',
     shell:
-        "fastqc {input} --noextract --outdir 'analysis/fastqc_raw'"
+        "fastqc {input} --noextract --outdir 'analysis/fastqc_raw' 2> {log.err} > {log.out}"
 

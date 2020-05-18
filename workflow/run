@@ -1,4 +1,7 @@
 module add python/3.6.1
 module add fastqc/0.11.8
 
-snakemake -p --forceall
+
+snakemake --jobs 4  --cluster-config cluster.yaml --cluster "sbatch --mem={cluster.mem} --time={cluster.time} --job-name={cluster.job_name} --output={cluster.output}"
+
+
