@@ -1,7 +1,13 @@
 module add python/3.6.1
 module add fastqc/0.11.8
+module add multiqc
+module add trimmomatic/0.38
+module add bwa/0.7.17 
+module add samtools/1.9.0
+module add picard/2.18.11
 
+snakemake --rerun-incomplete --jobs 4  --cluster-config cluster.yaml --cluster "sbatch --mem={cluster.mem} --time={cluster.time} --cores={cluster.threads} --job-name={cluster.job_name}" # --output=/dev/null --error=/dev/null"
 
-snakemake --jobs 4  --cluster-config cluster.yaml --cluster "sbatch --mem={cluster.mem} --time={cluster.time} --job-name={cluster.job_name} --output={cluster.output}"
+snakemake --report report.html
 
 

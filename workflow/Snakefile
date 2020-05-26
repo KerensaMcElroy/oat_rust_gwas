@@ -1,8 +1,21 @@
 configfile: "config.yaml"
 workdir: config["work"] 
+report: 'report/workflow.rst'
+localrules: all, multiqc_raw, multiqc_trim
+
+def getTargetFiles():
+    targets = list()
+    for r in config["refs"]:
+        targets.append("data/"+config["refs"][r]+".fna.gz.sa")
+
+    return targets
+
 rule all:
     input:
-        expand("analysis/fastqc_raw/{sample}_R{read}_fastqc.html", sample=config["samples"],read=config["reads"])
+        expand("bwa_filtered/{ref}/{sample}_30MAPQ_RG_mdup.bam", sample=config["samples"], ref=config["refs"]),
+        "analysis/fastqc_raw/multiqc_report.html",
+        "analysis/fastqc_trimmed/multiqc_report.html",
+        getTargetFiles(),
 
 rule clean:
     shell: 
@@ -12,10 +25,152 @@ rule fastqc_raw:
     input:
         'data/{sample}_R{read}.fastq.gz'
     output:
-        'analysis/fastqc_raw/{sample}_R{read}_fastqc.html'
+        "analysis/fastqc_raw/{sample}_R{read}_fastqc.zip"
     log:
         err = 'logs/fastqc_raw/{sample}_R{read}.out',
-        out = 'logs/fastqc_raw/{sample}_R{read}.err',
+        out = 'logs/fastqc_raw/{sample}_R{read}.err'
     shell:
-        "fastqc {input} --noextract --outdir 'analysis/fastqc_raw' 2> {log.err} > {log.out}"
+        """
+        fastqc {input} --noextract --outdir 'analysis/fastqc_raw' 2> {log.err} > {log.out}
+        """
+
+rule fastqc_trim:
+    input:
+        "trimmed/{sample}_R{read}_trim.fastq.gz"
+    output:
+        "analysis/fastqc_trimmed/{sample}_R{read}_trim_fastqc.zip"
+    log:
+        "logs/fastqc_trimmed/{sample}_R{read}_trim.log"
+    shell:
+        "fastqc {input} --noextract --outdir 'analysis/fastqc_raw' 2>&1 {log}"
+
+rule multiqc_raw:
+    input:
+        expand("analysis/fastqc_raw/{sample}_R{read}_fastqc.zip", sample=config["samples"], read=config["reads"])
+    output:
+        report('analysis/fastqc_raw/multiqc_report.html', category="Quality control")
+    log:
+        'logs/multiqc/raw.log'
+    params:
+        in_dir='analysis/fastqc_raw',
+        out_dir='analysis/fastqc_raw'
+    shell:
+        "multiqc -o {params.out_dir} {params.in_dir} > {log}"
+
+rule multiqc_trim:
+    input:
+        expand("analysis/fastqc_trimmed/{sample}_R{read}_trim_fastqc.zip", sample=config["samples"], read=config["reads"])
+    output:
+        report('analysis/fastqc_trimmed/multiqc_report.html', category="Quality control")
+    log:
+        'logs/multiqc/trimmed.log'
+    params:
+        in_dir='analysis/fastqc_trimmed',
+        out_dir='analysis/fastqc_trimmed'
+    shell:
+        "multiqc -o {params.out_dir} {params.in_dir} > {log}"
+
+rule trimmomatic:
+    input:
+        r1="data/{sample}_R1.fastq.gz", 
+        r2="data/{sample}_R2.fastq.gz"
+    output:
+        r1="trimmed/{sample}_R1_trim.fastq.gz",
+        r2="trimmed/{sample}_R2_trim.fastq.gz",
+        r1_unpaired="trimmed/{sample}_R1_trim.unpaired.fastq.gz",
+        r2_unpaired="trimmed/{sample}_R2_trim.unpaired.fastq.gz"
+    log:
+        "logs/trimmomatic/{sample}.log"
+    params:
+        trimmer="LEADING:10 TRAILING:10 SLIDINGWINDOW:4:15 ILLUMINACLIP:data/adapter_file_fixed.txt:2:30:10:2:keepBothReads MINLEN:100"
+    shell:
+        "trimmomatic PE {input.r1} {input.r2} {output.r1} {output.r1_unpaired} {output.r2} {output.r2_unpaired} {params.trimmer} > {log}"
+
+rule bwa_index:
+    input:
+        "data/{ref}.fna.gz"
+    output: 
+        "data/{ref}.fna.sa"
+    log:
+        "logs/bwa/{ref}.log"
+    shell:
+        "bwa index {input} 2&>1 {log}"
+
+rule bwa_mem:
+    input:
+        fastq=expand("trimmed/{{sample}}_R1_trim.fastq.gz", read=config['reads']),
+        genome=lambda wildcards: 'data/'+config["refs"][wildcards.ref]+".fna.gz"
+    output:
+        "bwa/{ref}/{sample}.sam"
+    threads: 8
+    log:
+        "logs/bwa/{ref}/{sample}.log"
+    shell:
+        "bwa mem -t {threads} {input.genome} {input.fastq} > {output} 2> {log}"
+
+rule bam_sort:
+    input:
+        "bwa/{ref}/{sample}.bam"
+    output:
+        final="bwa/{ref}/{sample}_sorted.bam"
+    threads: 7
+    log:
+        "logs/bwa/{ref}/{sample}_sort.log"
+    params: 
+        "bwa/{ref}/{sample}_sort"
+    shell:
+        "samtools sort -@ {threads} -T {params} {input} -o {output} 2> {log}"
+
+rule sam_to_bam:
+    input:
+        "bwa/{ref}/{sample}.sam"
+    output:
+        "bwa/{ref}/{sample}.bam"
+    threads: 7
+    log:
+        "logs/bwa/{ref}/{sample}_bam.log"
+    shell:
+        "samtools view -@ {threads} -bS {input} > {output} 2> {log}"
+
+rule map_filter:
+    input:
+        "bwa/{ref}/{sample}_sorted.bam" 
+    output:
+        "bwa_filtered/{ref}/{sample}_30MAPQ.bam"
+    params:
+        "-F 4 -q 30 -b"
+    log:
+        "logs/filter/{ref}/{sample}.log"
+    shell:
+        "samtools view {params} -o {output} 2> {log}"
+
+rule read_groups:
+    input:
+        "bwa_filtered/{ref}/{sample}_30MAPQ.bam"
+    output:
+        "bwa_filtered/{ref}/{sample}_30MAPQ_RG.bam"
+    params:
+        "RGID={sample} RGLB=lib1 RGPL=illumina RGPU=unit1 RGSM={sample}"
+    log:
+        "logs/rg/{ref}/{sample}_mdup.log"
+    shell:
+        "picard AddOrReplaceReadGroups I={input} O={output} {params} 2> {log}"
+
+rule markdup:
+    input:
+        "bwa_filtered/{ref}/{sample}_30MAPQ_RG.bam"
+    output:
+        "bwa_filtered/{ref}/{sample}_30MAPQ_RG_mdup.bam"
+    params:
+        "REMOVE_DUPLICATES=false METRICS_FILE=logs/mdup/{ref}/{sample}_MDUP.txt MAX_FILE_HANDLES=1000 VALIDATION_STRINGENCY=SILENT"
+    log:
+        "logs/mdup/{ref}/{sample}_mdup.log"
+    shell:
+        "picard MarkDuplicates I={input} O={output} {params} 2> {log}"
+     
+
+
+
+
+
 

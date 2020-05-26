@@ -1,11 +1,38 @@
-localrules: all
 
 __default__:
     time: 0:5:0
     mem: 1G
-    output: logs/{rule}/_{wildcards.sample}_{wildcards.read}_%A.slurm
+    threads: 1
+    job_name: sm_{rule}
 
 fastqc_raw:
-    job_name: sm_fastqc_raw
     time: 0:10:0
-    mem: 1G
+
+fastqc_trim:
+    time: 0:10:0
+
+trimmomatic:
+    time: 2:00:0
+
+bwa_mem:
+    time: 2:00:0
+    mem: 5G
+    threads: 8
+
+sam_to_bam:
+    time: 0:30:0
+    threads: 8
+
+bam_sort:
+    time: 1:00:0
+    threads: 8
+
+map_filter:
+    time: 0:30:0
+
+read_groups:
+    time: 0:30:0
+
+markdup:
+    time: 1:00:0
+    mem: 10G
