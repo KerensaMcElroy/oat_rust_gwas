@@ -28,5 +28,9 @@ export BIG=/datasets/work/AF_CROWN_RUST_WORK/2020-02-28_GWAS
 #wget -nc -P ${BIG}/data https://raw.githubusercontent.com/figueroalab/Pca-genome/master/Pca_assemblies/Puccinia_coronata_avenae_12SD80.gff3
 #
 #snps
-wget -nc -P ${BIG}/data https://s3.msi.umn.edu/nifa_crown_rust/all_isolates_12SD80.filter.vcf
-wget -nc -P ${BIG}/data https://s3.msi.umn.edu/nifa_crown_rust/all_isolates_12SD80.biallelic.maf_missing_filter.vcf
+#wget -nc -P ${BIG}/data https://s3.msi.umn.edu/nifa_crown_rust/all_isolates_12SD80.filter.vcf
+#wget -nc -P ${BIG}/data https://s3.msi.umn.edu/nifa_crown_rust/all_isolates_12SD80.biallelic.maf_missing_filter.vcf
+
+cd ${BIG}/data/
+md5sum -c vcf.md5sum > vcf_integrity_check.txt 2>&1
+
