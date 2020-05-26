@@ -3,29 +3,37 @@ workdir: config["work"]
 report: 'report/workflow.rst'
 localrules: all, multiqc_raw, multiqc_trim
 
-def getTargetFiles():
+def getTargetAmb():
     targets = list()
     for r in config["refs"]:
-        targets.append("data/"+config["refs"][r]+".fna.gz.sa")
+        targets.append("data/"+config["refs"][r]+".fna.amb")
+
+    return targets
+
+def getTargetFai():
+    targets = list()
+    for r in config["refs"]:
+        targets.append("data/"+config["refs"][r]+".fna.fai")
 
     return targets
 
 rule all:
     input:
-        expand("bwa_filtered/{ref}/{sample}_30MAPQ_RG_mdup.bam", sample=config["samples"], ref=config["refs"]),
+        expand("analysis/freebayes/{ref}_all.vcf", ref=config["refs"]),
+#        expand("analysis/bwa_filtered/{ref}/{sample}_30MAPQ_RG_mdup.bam", sample=config["samples"], ref=config["refs"]),
         "analysis/fastqc_raw/multiqc_report.html",
         "analysis/fastqc_trimmed/multiqc_report.html",
-        getTargetFiles(),
-
+        getTargetAmb(),
+        getTargetFai()
 rule clean:
     shell: 
         "rm -rf analysis logs"
 
 rule fastqc_raw:
     input:
-        'data/{sample}_R{read}.fastq.gz'
+        'data/{sample}_R{read}.small.fastq.gz'
     output:
-        "analysis/fastqc_raw/{sample}_R{read}_fastqc.zip"
+        "analysis/fastqc_raw/{sample}_R{read}.small_fastqc.zip"
     log:
         err = 'logs/fastqc_raw/{sample}_R{read}.out',
         out = 'logs/fastqc_raw/{sample}_R{read}.err'
@@ -36,17 +44,17 @@ rule fastqc_raw:
 
 rule fastqc_trim:
     input:
-        "trimmed/{sample}_R{read}_trim.fastq.gz"
+        "analysis/trimmed/{sample}_R{read}_trim.fastq.gz"
     output:
         "analysis/fastqc_trimmed/{sample}_R{read}_trim_fastqc.zip"
     log:
         "logs/fastqc_trimmed/{sample}_R{read}_trim.log"
     shell:
-        "fastqc {input} --noextract --outdir 'analysis/fastqc_raw' 2>&1 {log}"
+        "fastqc {input} --noextract --outdir 'analysis/fastqc_trimmed' 2> {log}"
 
 rule multiqc_raw:
     input:
-        expand("analysis/fastqc_raw/{sample}_R{read}_fastqc.zip", sample=config["samples"], read=config["reads"])
+        expand("analysis/fastqc_raw/{sample}_R{read}.small_fastqc.zip", sample=config["samples"], read=config["reads"])
     output:
         report('analysis/fastqc_raw/multiqc_report.html', category="Quality control")
     log:
@@ -72,13 +80,13 @@ rule multiqc_trim:
 
 rule trimmomatic:
     input:
-        r1="data/{sample}_R1.fastq.gz", 
-        r2="data/{sample}_R2.fastq.gz"
+        r1="data/{sample}_R1.small.fastq.gz", 
+        r2="data/{sample}_R2.small.fastq.gz"
     output:
-        r1="trimmed/{sample}_R1_trim.fastq.gz",
-        r2="trimmed/{sample}_R2_trim.fastq.gz",
-        r1_unpaired="trimmed/{sample}_R1_trim.unpaired.fastq.gz",
-        r2_unpaired="trimmed/{sample}_R2_trim.unpaired.fastq.gz"
+        r1="analysis/trimmed/{sample}_R1_trim.fastq.gz",
+        r2="analysis/trimmed/{sample}_R2_trim.fastq.gz",
+        r1_unpaired="analysis/trimmed/{sample}_R1_trim.unpaired.fastq.gz",
+        r2_unpaired="analysis/trimmed/{sample}_R2_trim.unpaired.fastq.gz"
     log:
         "logs/trimmomatic/{sample}.log"
     params:
@@ -90,18 +98,24 @@ rule bwa_index:
     input:
         "data/{ref}.fna.gz"
     output: 
-        "data/{ref}.fna.sa"
+        amb="data/{ref}.fna.amb",
+        fna="data/{ref}.fna"
     log:
         "logs/bwa/{ref}.log"
+    params:
+        "data/{ref}.fna"
     shell:
-        "bwa index {input} 2&>1 {log}"
+        '''
+        gunzip -c {input} > {output.fna}
+        bwa index {params} 2> {log}
+        '''
 
 rule bwa_mem:
     input:
-        fastq=expand("trimmed/{{sample}}_R1_trim.fastq.gz", read=config['reads']),
-        genome=lambda wildcards: 'data/'+config["refs"][wildcards.ref]+".fna.gz"
+        fastq=expand("analysis/trimmed/{{sample}}_R1_trim.fastq.gz", read=config['reads']),
+        genome=lambda wildcards: 'data/'+config["refs"][wildcards.ref]+".fna"
     output:
-        "bwa/{ref}/{sample}.sam"
+        "analysis/bwa/{ref}/{sample}.sam"
     threads: 8
     log:
         "logs/bwa/{ref}/{sample}.log"
@@ -110,22 +124,22 @@ rule bwa_mem:
 
 rule bam_sort:
     input:
-        "bwa/{ref}/{sample}.bam"
+        "analysis/bwa_filtered/{ref}/{sample}_30MAPQ_RG.bam"
     output:
-        final="bwa/{ref}/{sample}_sorted.bam"
+        "analysis/bwa_filtered/{ref}/{sample}_30MAPQ_RG_sorted.bam"
     threads: 7
     log:
         "logs/bwa/{ref}/{sample}_sort.log"
     params: 
-        "bwa/{ref}/{sample}_sort"
+        "analysis/bwa/{ref}/{sample}_sort"
     shell:
         "samtools sort -@ {threads} -T {params} {input} -o {output} 2> {log}"
 
 rule sam_to_bam:
     input:
-        "bwa/{ref}/{sample}.sam"
+        "analysis/bwa/{ref}/{sample}.sam"
     output:
-        "bwa/{ref}/{sample}.bam"
+        "analysis/bwa/{ref}/{sample}.bam"
     threads: 7
     log:
         "logs/bwa/{ref}/{sample}_bam.log"
@@ -134,9 +148,9 @@ rule sam_to_bam:
 
 rule map_filter:
     input:
-        "bwa/{ref}/{sample}_sorted.bam" 
+        "analysis/bwa/{ref}/{sample}.bam" 
     output:
-        "bwa_filtered/{ref}/{sample}_30MAPQ.bam"
+        "analysis/bwa_filtered/{ref}/{sample}_30MAPQ.bam"
     params:
         "-F 4 -q 30 -b"
     log:
@@ -146,31 +160,48 @@ rule map_filter:
 
 rule read_groups:
     input:
-        "bwa_filtered/{ref}/{sample}_30MAPQ.bam"
+        "analysis/bwa_filtered/{ref}/{sample}_30MAPQ.bam"
     output:
-        "bwa_filtered/{ref}/{sample}_30MAPQ_RG.bam"
+        "analysis/bwa_filtered/{ref}/{sample}_30MAPQ_RG.bam"
     params:
         "RGID={sample} RGLB=lib1 RGPL=illumina RGPU=unit1 RGSM={sample}"
     log:
         "logs/rg/{ref}/{sample}_mdup.log"
     shell:
-        "picard AddOrReplaceReadGroups I={input} O={output} {params} 2> {log}"
+        "AddOrReplaceReadGroups I={input} O={output} {params} 2> {log}"
 
 rule markdup:
     input:
-        "bwa_filtered/{ref}/{sample}_30MAPQ_RG.bam"
+        "analysis/bwa_filtered/{ref}/{sample}_30MAPQ_RG_sorted.bam"
     output:
-        "bwa_filtered/{ref}/{sample}_30MAPQ_RG_mdup.bam"
+        "analysis/bwa_filtered/{ref}/{sample}_30MAPQ_RG_mdup.bam"
     params:
         "REMOVE_DUPLICATES=false METRICS_FILE=logs/mdup/{ref}/{sample}_MDUP.txt MAX_FILE_HANDLES=1000 VALIDATION_STRINGENCY=SILENT"
     log:
         "logs/mdup/{ref}/{sample}_mdup.log"
     shell:
-        "picard MarkDuplicates I={input} O={output} {params} 2> {log}"
+        "MarkDuplicates I={input} O={output} {params} 2> {log}"
      
+rule index:
+    input:
+        "data/{ref}.fna"
+    output:
+        "data/{ref}.fna.fai"
+    log:
+        "logs/faidx/{ref}.log"
+    shell:
+        "samtools faidx {input}"
 
-
-
+rule freebayes:
+    input:
+        bams=expand("analysis/bwa_filtered/{{ref}}/{sample}_30MAPQ_RG_mdup.bam", sample=config["samples"]),
+        genome=lambda wildcards: 'data/'+config["refs"][wildcards.ref]+".fna"    
+    output:
+        "analysis/freebayes/{ref}_all.vcf"
+    log:
+        "logs/freebayes/{ref}_vcf.log"
+    shell:
+        "freebayes -f {input.genome} {input.bams} > {output} 2> {log}"
 
 
 

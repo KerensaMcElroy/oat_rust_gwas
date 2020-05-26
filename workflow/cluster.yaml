@@ -14,6 +14,10 @@ fastqc_trim:
 trimmomatic:
     time: 2:00:0
 
+bwa_index:
+    time: 0:30:0
+    mem: 5G
+
 bwa_mem:
     time: 2:00:0
     mem: 5G
@@ -36,3 +40,7 @@ read_groups:
 markdup:
     time: 1:00:0
     mem: 10G
+
+freebayes:
+    time: 1:00:0
+    mem: 50G

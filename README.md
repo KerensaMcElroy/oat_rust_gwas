@@ -48,7 +48,7 @@
   - establish bioinformatics software and settings consistant with 12SD80 pipeline (trimmomatic > bwa > filter > dedup > freebayes) (done)
   - complete Daniel Collin's snakemake training (done)
   - work through WGS snakemake tutorial (due 15.05.2020 - done)
-  - write and test snakemake pipeline to align small number of files to 12NC29 and call SNPs (due 22.05.2020)
+  - write and test snakemake pipeline to align small number of files to 12NC29 and call SNPs (due 22.05.2020 - done)
   - run full analysis on all read files against 12NC29 reference using snakemake pipeline (due 05.06.2020)
 
 ### Analysis
