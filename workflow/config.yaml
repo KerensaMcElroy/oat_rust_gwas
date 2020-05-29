@@ -1,12 +1,13 @@
 work: /datasets/work/AF_CROWN_RUST_WORK/2020-02-28_GWAS 
 
 reads:
-    1:
-    2:
+    R1:
+    R2:
 
 samples:
     15FL1-2: /datasets/work/AF_CROWN_RUST_WORK/2020-02-28_GWAS/data/15FL1-2
     15Fl1-4: /datasets/work/AF_CROWN_RUST_WORK/2020-02-28_GWAS/data/15Fl1-4 
+    16IL75-3: /datasets/work/AF_CROWN_RUST_WORK/2020-02-28_GWAS/data/16IL75-3
 
 refs:
     12NC29: GCA_002873275.1_ASM287327v1_genomic

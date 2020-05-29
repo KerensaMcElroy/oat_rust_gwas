@@ -3,6 +3,9 @@ workdir: config["work"]
 report: 'report/workflow.rst'
 localrules: all, multiqc_raw, multiqc_trim
 
+
+import glob
+
 def getTargetAmb():
     targets = list()
     for r in config["refs"]:
@@ -17,44 +20,56 @@ def getTargetFai():
 
     return targets
 
+def getTargetFastqc():
+    targets = list()
+    for s in config["samples"]:
+        fastq = glob.glob("data/"+s+"*R1*.fastq.gz")[0]
+        ext = ".".join(fastq.split(".")[:-2])+'_fastqc.zip'
+        f_name = 'analysis/fastqc_raw/'+"".join(ext.split("/")[1:])
+        targets.append(f_name)
+    return targets
+
+def getTargetFastq(sample, read):
+    f_names = glob.glob("data/"+sample+"*_"+read+"*.fastq.gz")
+    return f_names
+
 rule all:
     input:
         expand("analysis/freebayes/{ref}_all.vcf", ref=config["refs"]),
-#        expand("analysis/bwa_filtered/{ref}/{sample}_30MAPQ_RG_mdup.bam", sample=config["samples"], ref=config["refs"]),
         "analysis/fastqc_raw/multiqc_report.html",
         "analysis/fastqc_trimmed/multiqc_report.html",
         getTargetAmb(),
         getTargetFai()
+
 rule clean:
     shell: 
         "rm -rf analysis logs"
 
 rule fastqc_raw:
     input:
-        'data/{sample}_R{read}.small.fastq.gz'
+        'data/{sample}{extra}{read}{bit}.fastq.gz'
     output:
-        "analysis/fastqc_raw/{sample}_R{read}.small_fastqc.zip"
+        "analysis/fastqc_raw/{sample, (?<=\/).*?(?=_)}{extra, _.*?_(?=R[12])|_(?=R[12]_)}{read,(?<=_)R[12](?=[._])}{bit, (_001)?(?=_)}_fastqc.zip"
     log:
-        err = 'logs/fastqc_raw/{sample}_R{read}.out',
-        out = 'logs/fastqc_raw/{sample}_R{read}.err'
+        'logs/fastqc_raw/{sample}{extra}{read}{bit}.log',
     shell:
         """
-        fastqc {input} --noextract --outdir 'analysis/fastqc_raw' 2> {log.err} > {log.out}
+        fastqc {input} --noextract --outdir 'analysis/fastqc_raw' 2> {log}
         """
 
 rule fastqc_trim:
     input:
-        "analysis/trimmed/{sample}_R{read}_trim.fastq.gz"
+        "analysis/trimmed/{sample}_{read}_trim.fastq.gz"
     output:
-        "analysis/fastqc_trimmed/{sample}_R{read}_trim_fastqc.zip"
+        "analysis/fastqc_trimmed/{sample}_{read}_trim_fastqc.zip"
     log:
-        "logs/fastqc_trimmed/{sample}_R{read}_trim.log"
+        "logs/fastqc_trimmed/{sample}_{read}_trim.log"
     shell:
         "fastqc {input} --noextract --outdir 'analysis/fastqc_trimmed' 2> {log}"
 
 rule multiqc_raw:
     input:
-        expand("analysis/fastqc_raw/{sample}_R{read}.small_fastqc.zip", sample=config["samples"], read=config["reads"])
+        getTargetFastqc()
     output:
         report('analysis/fastqc_raw/multiqc_report.html', category="Quality control")
     log:
@@ -67,7 +82,7 @@ rule multiqc_raw:
 
 rule multiqc_trim:
     input:
-        expand("analysis/fastqc_trimmed/{sample}_R{read}_trim_fastqc.zip", sample=config["samples"], read=config["reads"])
+        expand("analysis/fastqc_trimmed/{sample}_{read}_trim_fastqc.zip", sample=config["samples"], read=config["reads"])
     output:
         report('analysis/fastqc_trimmed/multiqc_report.html', category="Quality control")
     log:
@@ -80,8 +95,8 @@ rule multiqc_trim:
 
 rule trimmomatic:
     input:
-        r1="data/{sample}_R1.small.fastq.gz", 
-        r2="data/{sample}_R2.small.fastq.gz"
+        r1=lambda wildcards: getTargetFastq(wildcards.sample,"R1"),
+        r2=lambda wildcards: getTargetFastq(wildcards.sample,"R2")
     output:
         r1="analysis/trimmed/{sample}_R1_trim.fastq.gz",
         r2="analysis/trimmed/{sample}_R2_trim.fastq.gz",
