@@ -1,8 +1,7 @@
 configfile: "config.yaml"
 workdir: config["work"] 
 report: 'report/workflow.rst'
-localrules: all, multiqc_raw, multiqc_trim
-
+localrules: all, multiqc_raw, multiqc_trim, clean, remove_haps
 
 import glob
 
@@ -117,10 +116,10 @@ rule trimmomatic:
         r1=lambda wildcards: getTargetFastq(wildcards.sample,"R1"),
         r2=lambda wildcards: getTargetFastq(wildcards.sample,"R2")
     output:
-        r1="analysis/trimmed/{sample}_R1_trim.fastq.gz",
-        r2="analysis/trimmed/{sample}_R2_trim.fastq.gz",
-        r1_unpaired="analysis/trimmed/{sample}_R1_trim.unpaired.fastq.gz",
-        r2_unpaired="analysis/trimmed/{sample}_R2_trim.unpaired.fastq.gz"
+        r1=protected("analysis/trimmed/{sample}_R1_trim.fastq.gz"),
+        r2=protected("analysis/trimmed/{sample}_R2_trim.fastq.gz"),
+        r1_unpaired=protected("analysis/trimmed/{sample}_R1_trim.unpaired.fastq.gz"),
+        r2_unpaired=protected("analysis/trimmed/{sample}_R2_trim.unpaired.fastq.gz")
     log:
         "logs/trimmomatic/{sample}.log"
     params:
@@ -150,7 +149,7 @@ rule bwa_mem:
         fastq=expand("analysis/trimmed/{{sample}}_R1_trim.fastq.gz", read=config['reads']),
         genome=lambda wildcards: 'data/'+config["refs"][wildcards.ref]+".nohap.fna"
     output:
-        "analysis/bwa/{ref}/{sample}.sam"
+        temp("analysis/bwa/{ref}/{sample}.sam")
     threads: 8
     log:
         "logs/bwa/{ref}/{sample}.log"
@@ -161,7 +160,7 @@ rule bam_sort:
     input:
         "analysis/bwa_filtered/{ref}/{sample}_30MAPQ_RG.bam"
     output:
-        "analysis/bwa_filtered/{ref}/{sample}_30MAPQ_RG_sorted.bam"
+        temp("analysis/bwa_filtered/{ref}/{sample}_30MAPQ_RG_sorted.bam")
     threads: 7
     log:
         "logs/bwa/{ref}/{sample}_sort.log"
@@ -174,7 +173,7 @@ rule sam_to_bam:
     input:
         "analysis/bwa/{ref}/{sample}.sam"
     output:
-        "analysis/bwa/{ref}/{sample}.bam"
+        protected("analysis/bwa/{ref}/{sample}.bam")
     threads: 7
     log:
         "logs/bwa/{ref}/{sample}_bam.log"
@@ -185,7 +184,7 @@ rule map_filter:
     input:
         "analysis/bwa/{ref}/{sample}.bam" 
     output:
-        "analysis/bwa_filtered/{ref}/{sample}_30MAPQ.bam"
+        temp("analysis/bwa_filtered/{ref}/{sample}_30MAPQ.bam")
     params:
         "-F 4 -q 30 -b"
     log:
@@ -197,7 +196,7 @@ rule read_groups:
     input:
         "analysis/bwa_filtered/{ref}/{sample}_30MAPQ.bam"
     output:
-        "analysis/bwa_filtered/{ref}/{sample}_30MAPQ_RG.bam"
+        temp("analysis/bwa_filtered/{ref}/{sample}_30MAPQ_RG.bam")
     params:
         "RGID={sample} RGLB=lib1 RGPL=illumina RGPU=unit1 RGSM={sample}"
     log:
@@ -209,7 +208,7 @@ rule markdup:
     input:
         "analysis/bwa_filtered/{ref}/{sample}_30MAPQ_RG_sorted.bam"
     output:
-        "analysis/bwa_filtered/{ref}/{sample}_30MAPQ_RG_mdup.bam"
+        protected("analysis/bwa_filtered/{ref}/{sample}_30MAPQ_RG_mdup.bam")
     params:
         "REMOVE_DUPLICATES=false METRICS_FILE=logs/mdup/{ref}/{sample}_MDUP.txt MAX_FILE_HANDLES=1000 VALIDATION_STRINGENCY=SILENT"
     log:
@@ -232,7 +231,7 @@ rule freebayes:
         bams=expand("analysis/bwa_filtered/{{ref}}/{sample}_30MAPQ_RG_mdup.bam", sample=config["samples"]),
         genome=lambda wildcards: 'data/'+config["refs"][wildcards.ref]+".nohap.fna"    
     output:
-        "analysis/freebayes/{ref}_all.vcf"
+        protected("analysis/freebayes/{ref}_all.vcf")
     log:
         "logs/freebayes/{ref}_vcf.log"
     shell:

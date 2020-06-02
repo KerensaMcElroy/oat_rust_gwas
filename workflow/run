@@ -9,9 +9,8 @@ module add freebayes/1.3.2
 
 PROJECT=2020-02-28_GWAS
 
-export PATH="$HOME/$PROJECT/scripts:$PATH"
 
-snakemake --rerun-incomplete --latency-wait 180 --jobs 6  --cluster-config cluster.yaml --cluster "sbatch --mem={cluster.mem} --time={cluster.time} --cores={cluster.threads} --job-name={cluster.job_name}" # --output=/dev/null --error=/dev/null"
+snakemake --rerun-incomplete --latency-wait 180 --jobs 100  --cluster-config cluster.yaml --cluster "sbatch --mem={cluster.mem} --time={cluster.time} --cores={cluster.threads} --job-name={cluster.job_name}" # --output=/dev/null --error=/dev/null"
 
 cd ~/*GWAS/workflow
 snakemake --report report.html
