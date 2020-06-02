@@ -13,6 +13,8 @@ fastqc_trim:
 
 trimmomatic:
     time: 2:00:0
+    threads: 8
+    mem: 5G
 
 bwa_index:
     time: 0:30:0

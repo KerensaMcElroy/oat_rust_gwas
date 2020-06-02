@@ -9,14 +9,14 @@ import glob
 def getTargetAmb():
     targets = list()
     for r in config["refs"]:
-        targets.append("data/"+config["refs"][r]+".fna.amb")
+        targets.append("data/"+config["refs"][r]+".nohap.fna.amb")
 
     return targets
 
 def getTargetFai():
     targets = list()
     for r in config["refs"]:
-        targets.append("data/"+config["refs"][r]+".fna.fai")
+        targets.append("data/"+config["refs"][r]+".nohap.fna.fai")
 
     return targets
 
@@ -44,6 +44,25 @@ rule all:
 rule clean:
     shell: 
         "rm -rf analysis logs"
+
+rule remove_haps:
+    input:
+        "data/{ref}.fna.gz"
+    output:
+        "data/{ref}.nohap.fna.gz"
+    log:
+        "logs/nohap/{ref}.log"
+    params:
+        infq="data/{ref}.fna",
+        outfq="data/{ref}.nohap.fna"
+    shell:
+        '''
+        gunzip {input}
+        fasta_filter.py -h > {log}
+        fasta_filter.py -infile {params.infq} -out {params.outfq} -regex F_\\\d\\\d\\\d, > {log}
+        gzip {params.outfq}
+        gzip {params.infq}
+        '''
 
 rule fastqc_raw:
     input:
@@ -106,19 +125,20 @@ rule trimmomatic:
         "logs/trimmomatic/{sample}.log"
     params:
         trimmer="LEADING:10 TRAILING:10 SLIDINGWINDOW:4:15 ILLUMINACLIP:data/adapter_file_fixed.txt:2:30:10:2:keepBothReads MINLEN:100"
+    threads: 8
     shell:
-        "trimmomatic PE {input.r1} {input.r2} {output.r1} {output.r1_unpaired} {output.r2} {output.r2_unpaired} {params.trimmer} > {log}"
+        "trimmomatic PE -threads {threads} {input.r1} {input.r2} {output.r1} {output.r1_unpaired} {output.r2} {output.r2_unpaired} {params.trimmer} > {log}"
 
 rule bwa_index:
     input:
-        "data/{ref}.fna.gz"
+        "data/{ref}.nohap.fna.gz"
     output: 
-        amb="data/{ref}.fna.amb",
-        fna="data/{ref}.fna"
+        amb="data/{ref}.nohap.fna.amb",
+        fna="data/{ref}.nohap.fna"
     log:
         "logs/bwa/{ref}.log"
     params:
-        "data/{ref}.fna"
+        "data/{ref}.nohap.fna"
     shell:
         '''
         gunzip -c {input} > {output.fna}
@@ -128,7 +148,7 @@ rule bwa_index:
 rule bwa_mem:
     input:
         fastq=expand("analysis/trimmed/{{sample}}_R1_trim.fastq.gz", read=config['reads']),
-        genome=lambda wildcards: 'data/'+config["refs"][wildcards.ref]+".fna"
+        genome=lambda wildcards: 'data/'+config["refs"][wildcards.ref]+".nohap.fna"
     output:
         "analysis/bwa/{ref}/{sample}.sam"
     threads: 8
@@ -199,9 +219,9 @@ rule markdup:
      
 rule index:
     input:
-        "data/{ref}.fna"
+        "data/{ref}.nohap.fna"
     output:
-        "data/{ref}.fna.fai"
+        "data/{ref}.nohap.fna.fai"
     log:
         "logs/faidx/{ref}.log"
     shell:
@@ -210,7 +230,7 @@ rule index:
 rule freebayes:
     input:
         bams=expand("analysis/bwa_filtered/{{ref}}/{sample}_30MAPQ_RG_mdup.bam", sample=config["samples"]),
-        genome=lambda wildcards: 'data/'+config["refs"][wildcards.ref]+".fna"    
+        genome=lambda wildcards: 'data/'+config["refs"][wildcards.ref]+".nohap.fna"    
     output:
         "analysis/freebayes/{ref}_all.vcf"
     log:
