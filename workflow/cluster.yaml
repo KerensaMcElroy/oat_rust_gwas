@@ -6,10 +6,10 @@ __default__:
     job_name: sm_{rule}
 
 fastqc_raw:
-    time: 0:10:0
+    time: 0:30:0
 
 fastqc_trim:
-    time: 0:10:0
+    time: 0:30:0
 
 trimmomatic:
     time: 2:00:0
@@ -30,7 +30,7 @@ sam_to_bam:
     threads: 8
 
 bam_sort:
-    time: 1:00:0
+    time: 2:00:0
     threads: 8
 
 map_filter:
@@ -44,5 +44,5 @@ markdup:
     mem: 10G
 
 freebayes:
-    time: 1:00:0
+    time: 2:00:0
     mem: 50G
