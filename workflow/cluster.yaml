@@ -34,7 +34,7 @@ bam_sort:
     threads: 8
 
 map_filter:
-    time: 0:30:0
+    time: 1:00:0
 
 read_groups:
     time: 0:30:0

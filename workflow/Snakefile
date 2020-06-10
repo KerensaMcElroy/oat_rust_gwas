@@ -22,14 +22,14 @@ def getTargetFai():
 def getTargetFastqc():
     targets = list()
     for s in config["samples"]:
-        fastq = glob.glob("data/"+s+"*R1*.fastq.gz")[0]
+        fastq = glob.glob("data/"+s+"_*R1*.fastq.gz")[0]
         ext = ".".join(fastq.split(".")[:-2])+'_fastqc.zip'
         f_name = 'analysis/fastqc_raw/'+"".join(ext.split("/")[1:])
         targets.append(f_name)
     return targets
 
 def getTargetFastq(sample, read):
-    f_names = glob.glob("data/"+sample+"*_"+read+"*.fastq.gz")
+    f_names = glob.glob("data/"+sample+"_*_"+read+"*.fastq.gz")
     return f_names
 
 rule all:
@@ -190,7 +190,7 @@ rule map_filter:
     log:
         "logs/filter/{ref}/{sample}.log"
     shell:
-        "samtools view {params} -o {output} 2> {log}"
+        "samtools view {params} -o {output} {input} 2> {log}"
 
 rule read_groups:
     input:
