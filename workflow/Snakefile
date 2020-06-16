@@ -1,7 +1,7 @@
 configfile: "config.yaml"
 workdir: config["work"] 
 report: 'report/workflow.rst'
-localrules: all, multiqc_raw, multiqc_trim, clean, remove_haps, regions
+localrules: all, multiqc_raw, multiqc_trim, clean, remove_haps
 
 import glob
 
@@ -19,24 +19,21 @@ def getTargetFai():
 
     return targets
 
-
 def getRegions(wildcards):
     lengths = {}
-    with checkpoints.index.get(gen=config["refs"][wilcards.ref]).output[0].open() as f:
+    with open(checkpoints.index.get(ref=config["refs"][wildcards.ref]).output[0]) as f:
         for line in f:
             c, l = line.split("\t")[:2]
             lengths[c] = int(l)
-
     positions = []
     total_coverage = 0
-    with checkpoints.coverage.get(ref=wildcards.ref).output[0].open() as f:
+    with open(checkpoints.coverage.get(ref=wildcards.ref).output[0]) as f:
         for line in f:
             chrom, pos, depth = line.strip().split("\t")
             pos = int(pos)
             depth = int(depth)
             positions.append([chrom, pos, depth])
             total_coverage +=depth
-
     bp_per_region = total_coverage / 1000
 
     lchrom = None
@@ -58,14 +55,14 @@ def getRegions(wildcards):
         if bp_in_region > bp_per_region:
             regions.append(chrom+":"+str(lpos)+"-"+str(pos))
             lpos = pos
-            bp_in_region = 0  
-    regions.append(lchrom+":"+str(lpos)+"-"+str(length[lchrom]))
-   
+            bp_in_region = 0
+    regions.append(lchrom+":"+str(lpos)+"-"+str(lengths[lchrom]))
+
     vcfs = []
-    for reg in region:
-        vcfs.append("analysis/freebayes/"+r+"/"+r+"_"+reg+"_all.vcf")
- 
-    return vcfs 
+    for reg in regions:
+        vcfs.append("analysis/freebayes/"+wildcards.ref+"/"+wildcards.ref+"_"+reg+"_all.vcf")
+
+    return vcfs
 
 def getTargetFastqc():
     targets = list()
@@ -82,8 +79,9 @@ def getTargetFastq(sample, read):
 
 rule all:
     input:
-#        expand("data/{ref}.regions", ref=config["refs"]),
-        expand("analysis/freebayes/{ref}_all.vcf", ref=config["refs"]),
+        "analysis/freebayes/12NC29_all.vcf",
+        "analysis/freebayes/12SD80_all.vcf",
+        #expand("analysis/freebayes/{ref}_all.vcf", ref=config["refs"]),
         "analysis/fastqc_raw/multiqc_report.html",
         "analysis/fastqc_trimmed/multiqc_report.html",
         getTargetAmb(),
@@ -265,29 +263,43 @@ rule markdup:
     shell:
         "MarkDuplicates I={input} O={output} {params} 2> {log}"
      
-#checkpoint index:
-#    input:
-#        "data/{ref}.nohap.fna"
-#    output:
-#        "data/{ref}.nohap.fna.fai"
-#    log:
-#        "logs/faidx/{ref}.log"
-#    shell:
-#        "samtools faidx {input}"
-#
+checkpoint index:
+    input:
+        "data/{ref}.nohap.fna"
+    output:
+        "data/{ref}.nohap.fna.fai"
+    log:
+        "logs/faidx/{ref}.log"
+    shell:
+        "samtools faidx {input}"
+
+rule index_bams:
+    input:
+        "analysis/bwa_filtered/{ref}/{sample}_30MAPQ_RG_mdup.bam"
+    output:
+        "analysis/bwa_filtered/{ref}/{sample}_30MAPQ_RG_mdup.bam.bai"
+    log:
+        "logs/bwa_filtered/{ref}/{sample}.log"
+    shell:
+        "samtools index {input}"
 
 rule freebayes:
     input:
         bams=expand("analysis/bwa_filtered/{{ref}}/{sample}_30MAPQ_RG_mdup.bam", sample=config["samples"]),
+        index=expand("analysis/bwa_filtered/{{ref}}/{sample}_30MAPQ_RG_mdup.bam.bai", sample=config["samples"]),
         genome=lambda wildcards: 'data/'+config["refs"][wildcards.ref]+".nohap.fna"    
     output:
         protected("analysis/freebayes/{ref}/{ref}_{region}_all.vcf")
     log:
         "logs/freebayes/{ref}/{ref}_{region}_vcf.log"
     params:
-        "-r {region}"
+        region="-r {region}",
+        bam_list="analysis/freebayes/{ref}/bam.in"
     shell:
-        "freebayes -f {input.genome} {input.bams} {params} > {output} 2> {log}"
+        """if [ ! -f {params.bam_list} ]; then echo {input.bams} | tr " " "\n" > {params.bam_list}; fi 
+        freebayes -f {input.genome} -L {params.bam_list} {params.region} > {output} 2> {log}
+        """
+
 
 checkpoint coverage:
     input:
@@ -295,27 +307,12 @@ checkpoint coverage:
     output:
         "data/{ref}.cov"
     shell:
-        "bamtools coverage -in {input} > {output}" 
-
-#rule regions:
-#    input:
-#        cov="data/{ref}.cov",
-#        fai=lambda wildcards: 'data/'+config["refs"][wildcards.ref]+".nohap.fna.fai"
-#    output:
-#        "data/{ref}.regions"
-#    run:
-#        lengths = {}
-#        fai = open({input.fai})
-#        cov = open({input.cov})
-#        regions = getRegions(fai,cov)        
-#        with open({output}, 'w') as out:
-#            for r in regions:
-#                out.write(r)
+        "bamtools coverage -in {input} > {output}"
 
 
 rule combine_vcf:
     input:
-         getRegions 
+         getRegions
     output:
         "analysis/freebayes/{ref}_all.vcf"
     shell:

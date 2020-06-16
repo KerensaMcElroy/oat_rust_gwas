@@ -44,5 +44,9 @@ markdup:
     mem: 10G
 
 freebayes:
+    time: 1:00:0
+    mem: 10G
+
+combine_vcfs:
     time: 2:00:0
     mem: 50G
