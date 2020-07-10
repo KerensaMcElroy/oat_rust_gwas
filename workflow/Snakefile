@@ -34,7 +34,7 @@ def getRegions(wildcards):
             depth = int(depth)
             positions.append([chrom, pos, depth])
             total_coverage +=depth
-    bp_per_region = total_coverage / 1000
+    bp_per_region = total_coverage / 5000
 
     lchrom = None
     lpos = 0
@@ -59,9 +59,10 @@ def getRegions(wildcards):
     regions.append(lchrom+":"+str(lpos)+"-"+str(lengths[lchrom]))
 
     vcfs = []
-    for reg in regions:
-        vcfs.append("analysis/freebayes/"+wildcards.ref+"/"+wildcards.ref+"_"+reg+"_all.vcf")
-
+    with open("analysis/freebayes_small/"+wildcards.ref+"/regions.txt", "w") as f:
+        for reg in regions:
+            vcfs.append("analysis/freebayes_small/"+wildcards.ref+"/"+wildcards.ref+"_"+reg+"_all.vcf")
+            f.write(reg)
     return vcfs
 
 def getTargetFastqc():
@@ -79,8 +80,8 @@ def getTargetFastq(sample, read):
 
 rule all:
     input:
-        "analysis/freebayes/12NC29_all.vcf",
-        "analysis/freebayes/12SD80_all.vcf",
+        "analysis/freebayes_small/12NC29_all.vcf",
+        "analysis/freebayes_small/12SD80_all.vcf",
         #expand("analysis/freebayes/{ref}_all.vcf", ref=config["refs"]),
         "analysis/fastqc_raw/multiqc_report.html",
         "analysis/fastqc_trimmed/multiqc_report.html",
@@ -289,12 +290,12 @@ rule freebayes:
         index=expand("analysis/bwa_filtered/{{ref}}/{sample}_30MAPQ_RG_mdup.bam.bai", sample=config["samples"]),
         genome=lambda wildcards: 'data/'+config["refs"][wildcards.ref]+".nohap.fna"    
     output:
-        protected("analysis/freebayes/{ref}/{ref}_{region}_all.vcf")
+        protected("analysis/freebayes_small/{ref}/{ref}_{region}_all.vcf")
     log:
-        "logs/freebayes/{ref}/{ref}_{region}_vcf.log"
+        "logs/freebayes_small/{ref}/{ref}_{region}_vcf.log"
     params:
         region="-r {region}",
-        bam_list="analysis/freebayes/{ref}/bam.in"
+        bam_list="analysis/freebayes_small/{ref}/bam.in"
     shell:
         """if [ ! -f {params.bam_list} ]; then echo {input.bams} | tr " " "\n" > {params.bam_list}; fi 
         freebayes -f {input.genome} -L {params.bam_list} {params.region} > {output} 2> {log}
@@ -314,6 +315,6 @@ rule combine_vcf:
     input:
          getRegions
     output:
-        "analysis/freebayes/{ref}_all.vcf"
+        "analysis/freebayes_small/{ref}_all.vcf"
     shell:
         """cat {input} | vcffirstheader \ | vcfstreamsort -w 1000 | vcfuniq > {output}"""

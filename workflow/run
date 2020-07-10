@@ -11,7 +11,7 @@ module add bamtools/2.5.1
 
 PROJECT=2020-02-28_GWAS
 
-snakemake --rerun-incomplete --latency-wait 180 --jobs 100  --cluster-config cluster.yaml --cluster "sbatch --mem={cluster.mem} --time={cluster.time} --cores={cluster.threads} --job-name={cluster.job_name}"  analysis/freebayes/12NC29_all.vcf
+snakemake --rerun-incomplete --latency-wait 180 --jobs 4000  --cluster-config cluster.yaml --cluster "sbatch --mem={cluster.mem} --time={cluster.time} --cores={cluster.threads} --job-name={cluster.job_name}"  analysis/freebayes_small/12NC29_all.vcf
 #snakemake --rerun-incomplete --latency-wait 180 --jobs 100  --cluster-config cluster.yaml --cluster "sbatch --mem={cluster.mem} --time={cluster.time} --cores={cluster.threads} --job-name={cluster.job_name}" # --output=/dev/null --error=/dev/null"
 
 #cd ~/*GWAS/workflow
