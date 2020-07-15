@@ -140,13 +140,16 @@ pheno_2017_rep <- read_excel(path = 'data/Copy of OCR2017Survey.xlsx') %>%
   mutate_at(vars(-sample), recode_data) %>%
   group_by(sample) %>%
   filter(n() > 1) %>%
-  summarise_all(mean, na.rm=TRUE)
+  summarise_all(max, na.rm=TRUE)
 
 pheno_2017 <- read_excel(path = 'data/Copy of OCR2017Survey.xlsx') %>%
   unite("sample", "Year","State","Isolate", sep = '') %>%
   mutate(sample = str_remove(sample, "^20")) %>%
   mutate_at(vars(-sample), recode_data) %>%
+  group_by(sample) %>%
+  filter(n() == 1) %>%
   full_join(pheno_2017_rep) 
+
 
 names(pheno_2017) <- str_replace_all(names(pheno_2017), "\\s","")
 
@@ -185,4 +188,6 @@ filtered <- merged %>%
 
 filtered %>% group_by(year, buckthorn) %>% summarise(n())
 write_tsv(tibble(filtered$sample), "data/samples.tsv", header=FALSE)
->>>>>>> acf673652a47b8814b44c71cd8d8ed1ecaba5834
+
+filtered %>% select(sample,year,buckthorn,pc14:stainless) %>%
+  write_tsv("data/sample_phenos.tsv")
