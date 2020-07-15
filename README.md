@@ -33,10 +33,10 @@
   - 50 isolates 2017 (data/Copy of OCR2017Survey.xlsx) (only subset sequenced? And only one replicate? Check with M) (due 08.05.2020 - done, two missing)
  
 * snps 12SD80
-  - 60 isolates 2015/1990 
-  - 80 isolates buckthorn nursery 2016/17/18
-  - 50 isolates 2017 
-  - request and check md5sums (due 08.05.2020)
+  - 60 isolates 2015/1990 (subset of data/all_isolates_12SD80.filter.vcf, data/all_isolates_12SD80.biallelic.maf_missing_filter.vcf)
+  - 80 isolates buckthorn nursery 2016/17/18 (data/Buckthorn_variants.vcf.tar.gz)
+  - 50 isolates 2017 (subset of data/SA_SOU_NOR_variants.vcf.tar.gz)
+  - request and check md5sums (due 08.05.2020 - done)
 
 * review allele frequency plots to discard contaminated isolates (due 13.05.2020 - done)
 
@@ -47,8 +47,8 @@
 * establish snakemake pipeline
   - establish bioinformatics software and settings consistant with 12SD80 pipeline (trimmomatic > bwa > filter > dedup > freebayes) (done)
   - complete Daniel Collin's snakemake training (done)
-  - work through WGS snakemake tutorial (due 15.05.2020)
-  - write and test snakemake pipeline to align small number of files to 12NC29 and call SNPs (due 22.05.2020)
+  - work through WGS snakemake tutorial (due 15.05.2020 - done)
+  - write and test snakemake pipeline to align small number of files to 12NC29 and call SNPs (due 22.05.2020 - done)
   - run full analysis on all read files against 12NC29 reference using snakemake pipeline (due 05.06.2020)
 
 ### Analysis

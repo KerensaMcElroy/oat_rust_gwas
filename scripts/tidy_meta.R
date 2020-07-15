@@ -101,7 +101,8 @@ pub_pheno <- read_tsv(file = 'data/1990_2015_phenotypes.txt') %>%
   as_tibble() %>%
   mutate(sample = str_extract(sample, pattern = '[:alnum:]+-[12345]')) %>%
   group_by(sample) %>%
-  summarise_all(mean)
+  summarise_all(mean) %>%
+  mutate(sample = if_else(sample == "15FL1-4", "15Fl1-4", sample))
 
 names(pub_pheno) <- str_replace_all(names(pub_pheno), "\\s","")
 
@@ -161,18 +162,8 @@ phenos <- full_join(phenos, pub_pheno) %>%
 setdiff(no_SA, phenos$sample)
 #[1] "17FL16-1" "17FL26-3" "17MNBT-1" "203-1"
 
-#merge in the phenotype data
+#merge in the phenotype data. Unfortunately typo name '15Fl1-4' has been propagated through sequence read file names so needs to be retained
 merged <- left_join(merged, phenos)
-
-#remove contaminated isolates
-#see file docs/kickingout_contaminants.pptx
-#to be removed:
-#17MNBT-1
-#17MNBT-22
-#17MNBT-25
-#18MNBT-48
-
-#question mark 17FL24-2, 17ND156-3. Will remove them
 
 no_contam <- merged %>% 
   filter(!sample %in% c('17MNBT-1', '17MNBT-22', 
@@ -181,3 +172,17 @@ no_contam <- merged %>%
 setdiff(merged$sample, no_contam$sample)
 #[1] "17FL24-2"  "17MNBT-1"  "17MNBT-22" "17MNBT-25" "17ND156-3"
 #[6] "18MNBT-48"
+
+#remove contaminants (17MNBT-1, 17MNBT-22, 17MNBT-25, 18MNBT-48, 17FL24-2, 17ND156-3), and SA samples 
+
+#see file docs/kickingout_contaminants.pptx
+
+filtered <- merged %>%
+  filter(!(sample %in% c("17MNBT-1", "17MNBT-22", "17MNBT-25", "18MNBT-48", "17FL24-2", "17ND156-3", "203-1","17FL16-1","17FL26-3" ))) %>%
+  filter(!(sample %in% SA$sample_id)) %>%
+  group_by(sample) %>%
+  summarise_all(mean)
+
+filtered %>% group_by(year, buckthorn) %>% summarise(n())
+write_tsv(tibble(filtered$sample), "data/samples.tsv", header=FALSE)
+>>>>>>> acf673652a47b8814b44c71cd8d8ed1ecaba5834

@@ -1,0 +1,320 @@
+configfile: "config.yaml"
+workdir: config["work"] 
+report: 'report/workflow.rst'
+localrules: all, multiqc_raw, multiqc_trim, clean, remove_haps
+
+import glob
+
+def getTargetAmb():
+    targets = list()
+    for r in config["refs"]:
+        targets.append("data/"+config["refs"][r]+".nohap.fna.amb")
+
+    return targets
+
+def getTargetFai():
+    targets = list()
+    for r in config["refs"]:
+        targets.append("data/"+config["refs"][r]+".nohap.fna.fai")
+
+    return targets
+
+def getRegions(wildcards):
+    lengths = {}
+    with open(checkpoints.index.get(ref=config["refs"][wildcards.ref]).output[0]) as f:
+        for line in f:
+            c, l = line.split("\t")[:2]
+            lengths[c] = int(l)
+    positions = []
+    total_coverage = 0
+    with open(checkpoints.coverage.get(ref=wildcards.ref).output[0]) as f:
+        for line in f:
+            chrom, pos, depth = line.strip().split("\t")
+            pos = int(pos)
+            depth = int(depth)
+            positions.append([chrom, pos, depth])
+            total_coverage +=depth
+    bp_per_region = total_coverage / 5000
+
+    lchrom = None
+    lpos = 0
+    bp_in_region = 0
+
+    regions = []
+    for line in positions:
+        chrom, pos, depth = line
+        if lchrom!=chrom:
+            if lchrom:
+                regions.append(lchrom+":"+str(lpos)+"-"+str(lengths[lchrom]))
+                lpos = 0
+                lchrom = chrom
+                bp_in_region = 0
+            else:
+                lchrom = chrom
+        bp_in_region += depth
+        if bp_in_region > bp_per_region:
+            regions.append(chrom+":"+str(lpos)+"-"+str(pos))
+            lpos = pos
+            bp_in_region = 0
+    regions.append(lchrom+":"+str(lpos)+"-"+str(lengths[lchrom]))
+
+    vcfs = []
+    with open("analysis/freebayes_small/"+wildcards.ref+"/regions.txt", "w") as f:
+        for reg in regions:
+            vcfs.append("analysis/freebayes_small/"+wildcards.ref+"/"+wildcards.ref+"_"+reg+"_all.vcf")
+            f.write(reg)
+    return vcfs
+
+def getTargetFastqc():
+    targets = list()
+    for s in config["samples"]:
+        fastq = glob.glob("data/"+s+"_*R1*.fastq.gz")[0]
+        ext = ".".join(fastq.split(".")[:-2])+'_fastqc.zip'
+        f_name = 'analysis/fastqc_raw/'+"".join(ext.split("/")[1:])
+        targets.append(f_name)
+    return targets
+
+def getTargetFastq(sample, read):
+    f_names = glob.glob("data/"+sample+"_*_"+read+"*.fastq.gz")
+    return f_names
+
+rule all:
+    input:
+        "analysis/freebayes_small/12NC29_all.vcf",
+        "analysis/freebayes_small/12SD80_all.vcf",
+        #expand("analysis/freebayes/{ref}_all.vcf", ref=config["refs"]),
+        "analysis/fastqc_raw/multiqc_report.html",
+        "analysis/fastqc_trimmed/multiqc_report.html",
+        getTargetAmb(),
+        getTargetFai()
+
+rule clean:
+    shell: 
+        "rm -rf analysis logs"
+
+rule remove_haps:
+    input:
+        "data/{ref}.fna.gz"
+    output:
+        "data/{ref}.nohap.fna.gz"
+    log:
+        "logs/nohap/{ref}.log"
+    params:
+        infq="data/{ref}.fna",
+        outfq="data/{ref}.nohap.fna"
+    shell:
+        '''
+        gunzip {input}
+        fasta_filter.py -h > {log}
+        fasta_filter.py -infile {params.infq} -out {params.outfq} -regex F_\\\d\\\d\\\d, > {log}
+        gzip {params.outfq}
+        gzip {params.infq}
+        '''
+
+rule fastqc_raw:
+    input:
+        'data/{sample}{extra}{read}{bit}.fastq.gz'
+    output:
+        "analysis/fastqc_raw/{sample, (?<=\/).*?(?=_)}{extra, _.*?_(?=R[12])|_(?=R[12]_)}{read,(?<=_)R[12](?=[._])}{bit, (_001)?(?=_)}_fastqc.zip"
+    log:
+        'logs/fastqc_raw/{sample}{extra}{read}{bit}.log',
+    shell:
+        """
+        fastqc {input} --noextract --outdir 'analysis/fastqc_raw' 2> {log}
+        """
+
+rule fastqc_trim:
+    input:
+        "analysis/trimmed/{sample}_{read}_trim.fastq.gz"
+    output:
+        "analysis/fastqc_trimmed/{sample}_{read}_trim_fastqc.zip"
+    log:
+        "logs/fastqc_trimmed/{sample}_{read}_trim.log"
+    shell:
+        "fastqc {input} --noextract --outdir 'analysis/fastqc_trimmed' 2> {log}"
+
+rule multiqc_raw:
+    input:
+        getTargetFastqc()
+    output:
+        'analysis/fastqc_raw/multiqc_report.html', category="Quality control"
+    log:
+        'logs/multiqc/raw.log'
+    params:
+        in_dir='analysis/fastqc_raw',
+        out_dir='analysis/fastqc_raw'
+    shell:
+        "multiqc -o {params.out_dir} {params.in_dir} > {log}"
+
+rule multiqc_trim:
+    input:
+        expand("analysis/fastqc_trimmed/{sample}_{read}_trim_fastqc.zip", sample=config["samples"], read=config["reads"])
+    output:
+        'analysis/fastqc_trimmed/multiqc_report.html', category="Quality control"
+    log:
+        'logs/multiqc/trimmed.log'
+    params:
+        in_dir='analysis/fastqc_trimmed',
+        out_dir='analysis/fastqc_trimmed'
+    shell:
+        "multiqc -o {params.out_dir} {params.in_dir} > {log}"
+
+rule trimmomatic:
+    input:
+        r1=lambda wildcards: getTargetFastq(wildcards.sample,"R1"),
+        r2=lambda wildcards: getTargetFastq(wildcards.sample,"R2")
+    output:
+        r1=protected("analysis/trimmed/{sample}_R1_trim.fastq.gz"),
+        r2=protected("analysis/trimmed/{sample}_R2_trim.fastq.gz"),
+        r1_unpaired=protected("analysis/trimmed/{sample}_R1_trim.unpaired.fastq.gz"),
+        r2_unpaired=protected("analysis/trimmed/{sample}_R2_trim.unpaired.fastq.gz")
+    log:
+        "logs/trimmomatic/{sample}.log"
+    params:
+        trimmer="LEADING:10 TRAILING:10 SLIDINGWINDOW:4:15 ILLUMINACLIP:data/adapter_file_fixed.txt:2:30:10:2:keepBothReads MINLEN:100"
+    threads: 8
+    shell:
+        "trimmomatic PE -threads {threads} {input.r1} {input.r2} {output.r1} {output.r1_unpaired} {output.r2} {output.r2_unpaired} {params.trimmer} > {log}"
+
+rule bwa_index:
+    input:
+        "data/{ref}.nohap.fna.gz"
+    output: 
+        amb="data/{ref}.nohap.fna.amb",
+        fna="data/{ref}.nohap.fna"
+    log:
+        "logs/bwa/{ref}.log"
+    params:
+        "data/{ref}.nohap.fna"
+    shell:
+        '''
+        gunzip -c {input} > {output.fna}
+        bwa index {params} 2> {log}
+        '''
+
+rule bwa_mem:
+    input:
+        fastq=expand("analysis/trimmed/{{sample}}_R1_trim.fastq.gz", read=config['reads']),
+        genome=lambda wildcards: 'data/'+config["refs"][wildcards.ref]+".nohap.fna"
+    output:
+        temp("analysis/bwa/{ref}/{sample}.sam")
+    threads: 8
+    log:
+        "logs/bwa/{ref}/{sample}.log"
+    shell:
+        "bwa mem -t {threads} {input.genome} {input.fastq} > {output} 2> {log}"
+
+rule bam_sort:
+    input:
+        "analysis/bwa_filtered/{ref}/{sample}_30MAPQ_RG.bam"
+    output:
+        temp("analysis/bwa_filtered/{ref}/{sample}_30MAPQ_RG_sorted.bam")
+    threads: 7
+    log:
+        "logs/bwa/{ref}/{sample}_sort.log"
+    params: 
+        "analysis/bwa/{ref}/{sample}_sort"
+    shell:
+        "samtools sort -@ {threads} -T {params} {input} -o {output} 2> {log}"
+
+rule sam_to_bam:
+    input:
+        "analysis/bwa/{ref}/{sample}.sam"
+    output:
+        protected("analysis/bwa/{ref}/{sample}.bam")
+    threads: 7
+    log:
+        "logs/bwa/{ref}/{sample}_bam.log"
+    shell:
+        "samtools view -@ {threads} -bS {input} > {output} 2> {log}"
+
+rule map_filter:
+    input:
+        "analysis/bwa/{ref}/{sample}.bam" 
+    output:
+        temp("analysis/bwa_filtered/{ref}/{sample}_30MAPQ.bam")
+    params:
+        "-F 4 -q 30 -b"
+    log:
+        "logs/filter/{ref}/{sample}.log"
+    shell:
+        "samtools view {params} -o {output} {input} 2> {log}"
+
+rule read_groups:
+    input:
+        "analysis/bwa_filtered/{ref}/{sample}_30MAPQ.bam"
+    output:
+        temp("analysis/bwa_filtered/{ref}/{sample}_30MAPQ_RG.bam")
+    params:
+        "RGID={sample} RGLB=lib1 RGPL=illumina RGPU=unit1 RGSM={sample}"
+    log:
+        "logs/rg/{ref}/{sample}_mdup.log"
+    shell:
+        "AddOrReplaceReadGroups I={input} O={output} {params} 2> {log}"
+
+rule markdup:
+    input:
+        "analysis/bwa_filtered/{ref}/{sample}_30MAPQ_RG_sorted.bam"
+    output:
+        protected("analysis/bwa_filtered/{ref}/{sample}_30MAPQ_RG_mdup.bam")
+    params:
+        "REMOVE_DUPLICATES=false METRICS_FILE=logs/mdup/{ref}/{sample}_MDUP.txt MAX_FILE_HANDLES=1000 VALIDATION_STRINGENCY=SILENT"
+    log:
+        "logs/mdup/{ref}/{sample}_mdup.log"
+    shell:
+        "MarkDuplicates I={input} O={output} {params} 2> {log}"
+     
+checkpoint index:
+    input:
+        "data/{ref}.nohap.fna"
+    output:
+        "data/{ref}.nohap.fna.fai"
+    log:
+        "logs/faidx/{ref}.log"
+    shell:
+        "samtools faidx {input}"
+
+rule index_bams:
+    input:
+        "analysis/bwa_filtered/{ref}/{sample}_30MAPQ_RG_mdup.bam"
+    output:
+        "analysis/bwa_filtered/{ref}/{sample}_30MAPQ_RG_mdup.bam.bai"
+    log:
+        "logs/bwa_filtered/{ref}/{sample}.log"
+    shell:
+        "samtools index {input}"
+
+rule freebayes:
+    input:
+        bams=expand("analysis/bwa_filtered/{{ref}}/{sample}_30MAPQ_RG_mdup.bam", sample=config["samples"]),
+        index=expand("analysis/bwa_filtered/{{ref}}/{sample}_30MAPQ_RG_mdup.bam.bai", sample=config["samples"]),
+        genome=lambda wildcards: 'data/'+config["refs"][wildcards.ref]+".nohap.fna"    
+    output:
+        protected("analysis/freebayes_small/{ref}/{ref}_{region}_all.vcf")
+    log:
+        "logs/freebayes_small/{ref}/{ref}_{region}_vcf.log"
+    params:
+        region="-r {region}",
+        bam_list="analysis/freebayes_small/{ref}/bam.in"
+    shell:
+        """if [ ! -f {params.bam_list} ]; then echo {input.bams} | tr " " "\n" > {params.bam_list}; fi 
+        freebayes -f {input.genome} -L {params.bam_list} {params.region} > {output} 2> {log}
+        """
+
+
+checkpoint coverage:
+    input:
+        "analysis/bwa_filtered/{ref}/"+list(config["samples"].keys())[0]+"_30MAPQ_RG_mdup.bam"
+    output:
+        "data/{ref}.cov"
+    shell:
+        "bamtools coverage -in {input} > {output}"
+
+
+rule combine_vcf:
+    input:
+         getRegions
+    output:
+        "analysis/freebayes_small/{ref}_all.vcf"
+    shell:
+        """cat {input} | vcffirstheader \ | vcfstreamsort -w 1000 | vcfuniq > {output}"""

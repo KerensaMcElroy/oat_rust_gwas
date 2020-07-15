@@ -1,0 +1,20 @@
+module add python/3.6.1
+module add fastqc/0.11.8
+module add multiqc
+module add trimmomatic/0.38
+module add bwa/0.7.17 
+module add samtools/1.9.0
+module add picard/2.18.11
+module add freebayes/1.3.2
+module add vcflib/20170116
+module add bamtools/2.5.1
+
+PROJECT=2020-02-28_GWAS
+
+snakemake --rerun-incomplete --latency-wait 180 --jobs 4000  --cluster-config cluster.yaml --cluster "sbatch --mem={cluster.mem} --time={cluster.time} --cores={cluster.threads} --job-name={cluster.job_name}"  analysis/freebayes_small/12NC29_all.vcf
+#snakemake --rerun-incomplete --latency-wait 180 --jobs 100  --cluster-config cluster.yaml --cluster "sbatch --mem={cluster.mem} --time={cluster.time} --cores={cluster.threads} --job-name={cluster.job_name}" # --output=/dev/null --error=/dev/null"
+
+#cd ~/*GWAS/workflow
+#snakemake --report report.html
+
+
