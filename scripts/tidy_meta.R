@@ -188,6 +188,17 @@ filtered <- merged %>%
 
 filtered %>% group_by(year, buckthorn) %>% summarise(n())
 write_tsv(tibble(filtered$sample), "data/samples.tsv", header=FALSE)
-
+filtered %>% summarise(n())
 filtered %>% select(sample,year,buckthorn,pc14:stainless) %>%
   write_tsv("data/sample_phenos.tsv")
+
+binary <- filtered %>% select(sample, pc14:stainless) %>%
+  mutate_if(is.numeric, ~if_else(.x > 7, 1, 0)) %>%
+  rename(Taxa = sample)
+ncol(binary)
+head <- c('taxa',rep(c('data'), 40))
+out <- file('data/phenotypes_bin.txt')
+close(out)
+cat('<Phenotype>\n',file='data/phenotypes_bin.txt')
+cat("taxa",rep(c('data'), 40), "\n",file='data/phenotypes_bin.txt',sep="\t",append=TRUE)
+write_tsv(binary, 'data/phenotypes_bin.txt', append=TRUE, col_names=TRUE)
