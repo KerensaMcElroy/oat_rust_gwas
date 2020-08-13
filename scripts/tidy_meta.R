@@ -189,6 +189,37 @@ filtered <- merged %>%
 
 filtered %>% group_by(year, buckthorn) %>% summarise(n())
 write_tsv(tibble(filtered$sample), "data/samples.tsv", header=FALSE)
-
+filtered %>% summarise(n())
 filtered %>% select(sample,year,buckthorn,pc14:stainless) %>%
   write_tsv("data/sample_phenos.tsv")
+
+binary <- filtered %>% select(sample, pc14:stainless) %>%
+  mutate_if(is.numeric, ~if_else(.x > 7, 1, 0)) %>%
+  rename(Taxa = sample)
+
+nine <- filtered %>% select(sample, pc14:stainless) %>%
+  rename(Taxa = sample)
+
+write_PC <- function(pc, phenos) {
+  out_file <- paste('data/phenotypes',deparse(substitute(phenos)), pc,'.txt', sep = '_')
+  cat('<Phenotype>\n',file=out_file)
+  differential <- phenos %>%
+    select(Taxa, pc)
+  cat("taxa","data", "\n", file=out_file, sep="\t", append=TRUE)
+  write_tsv(differential, out_file, append=TRUE, col_names=TRUE)
+}
+
+for (i in names(nine)[-c(1)]) {
+  write_PC(i, nine)
+}
+
+for (i in names(binary)[-c(1)]) {
+  write_PC(i, binary)
+}
+cat('<Phenotype>\n',file='data/phenotypes_bin.txt')
+cat("taxa",rep(c('data'), 40), "\n",file='data/phenotypes_bin.txt',sep="\t",append=TRUE)
+write_tsv(binary, 'data/phenotypes_bin.txt', append=TRUE, col_names=TRUE)
+
+cat('<Phenotype>\n',file='data/phenotypes_nine.txt')
+cat("taxa",rep(c('data'), 40), "\n",file='data/phenotypes_nine.txt',sep="\t",append=TRUE)
+write_tsv(nine, 'data/phenotypes_nine.txt', append=TRUE, col_names=TRUE)
