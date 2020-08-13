@@ -2,6 +2,7 @@ library(tidyverse)
 library(readxl)
 library(janitor)
 
+
 #column names are split across two rows. Extract them separately first
 headers <- read_excel(path = 'data/Figueroa_Project_006_NovaSeq_Summary.xlsx',
                     skip = 9, col_names = FALSE, n_max = 2, 
