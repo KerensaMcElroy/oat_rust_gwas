@@ -2,8 +2,25 @@ library(tidyverse)
 library(ggman)
 library(qqman)
 
+#funtion for producing tables of significant peaks
+sig_table <- function(genome, oat_diff, pval, nchrom, chroms, ext){
+  pc_stats <- read_tsv(file=paste(oat_diff, '/mlm_nocomp2.txt', sep='')) 
+  #print(pc_stats)
+  for_table <- pc_stats %>%
+      select(c(Marker, Pos, Chr, p)) %>%    
+      left_join(chroms) %>%
+      filter(!is.na(p) & !is.nan(p) & p < pval) %>%
+      group_by(Chr) %>%
+      filter(n()>nchrom) %>%
+      ungroup()%>%
+      select(c(Marker, Chromosome, Pos, p)) %>%
+      print()
+  diff <- pc_stats$Trait[1]
+  write_tsv(for_table,path = paste('/datasets/work/af-crown-rust/work/2020-02-28_GWAS/results/tables/', genome, '_', diff, ext, sep=''), col_names = TRUE, append=FALSE)
+}
+
+#function for producing manhattan plots
 my_manhattan <- function(in_file, chroms, genome){
-  
   pc_stats <- read_tsv(file=in_file) %>%
     left_join(chroms) %>%
     filter(!is.na(p) & !is.nan(p)) %>%
@@ -15,8 +32,6 @@ my_manhattan <- function(in_file, chroms, genome){
   
   to_plot <- pc_stats %>%
     select(c(snp, chrom, bp, pvalue))
-  
-
   
   to_plot <- as.data.frame(to_plot)
   
@@ -43,31 +58,55 @@ my_manhattan <- function(in_file, chroms, genome){
   snps_label <- as.data.frame(snps_label)
   
   if (nrow(snps_label) > 0) {
-    
     snps_highlight <- to_plot %>%
       filter(chrom %in% snps_label$chrom)
-
     plot <- ggmanLabel(plot, labelDfm = snps_label, snp = "snp", label = "label", type = 'text')
     plot <- ggmanHighlight(plot, highlight = snps_highlight$snp, size=.1)
   } else {
     plot <- plot + scale_colour_grey(start = 0.5,end = 0.6)
   }
-  
   ggsave(plot, width=6, height=4, device = 'jpeg', filename = paste('/datasets/work/AF_CROWN_RUST_WORK/2020-02-28_GWAS/results/images/', genome, '_nine_man_', oat_diff,'.jpeg', sep=''))
-  
-  
   jpeg(paste('/datasets/work/AF_CROWN_RUST_WORK/2020-02-28_GWAS/results/images/', genome, '_nine_qq_', oat_diff,'.jpeg', sep=''), width = 3, height = 3, units = 'in', res = 300)
-  
   qplt <- qq(to_plot$pvalue, main=oat_diff, cex=.2)
-  
   dev.off()
 }
 
-folders_nine <- list.files(path='/datasets/work/AF_CROWN_RUST_WORK/2020-02-28_GWAS/analysis/freebayes/12SD80/nine', full.names=TRUE)
+#list the output and location of tassel results
+folders_nine_12SD80 <- list.files(path='/datasets/work/af-crown-rust/work/2020-02-28_GWAS/analysis/freebayes/12SD80/nine', full.names=TRUE)
+folders_nine_12NC29 <- list.files(path='/datasets/work/af-crown-rust/work/2020-02-28_GWAS/analysis/freebayes/12NC29/interim/nine', full.names=TRUE)
+folders_bin_12NC29 <- list.files(path='/datasets/work/af-crown-rust/work/2020-02-28_GWAS/analysis/freebayes/12NC29/interim/binary', full.names=TRUE)
 
-chroms <- read_delim(file='/datasets/work/AF_CROWN_RUST_WORK/2020-02-28_GWAS/data/chroms_12SD80.txt', col_names = FALSE, delim=' ') %>%
-  select(c(Chr = X1, Chromosome = X11)) 
+#contig names for genomes
+chroms_12SD80 <- read_delim(file='/datasets/work/af-crown-rust/work/2020-02-28_GWAS/data/chroms_12SD80.txt', col_names = FALSE, delim=' ') %>%
+  select(c(Chr = X1, Chromosome = X11)) %>%
+  mutate(Chromosome = str_remove(Chromosome, ","))
 
+chroms_12NC29 <- read_delim(file='/datasets/work/af-crown-rust/work/2020-02-28_GWAS/data/chroms.txt', col_names = FALSE, delim=' ') %>%
+  select(c(Chr = X1, Chromosome = X11)) %>%
+  mutate(Chromosome = str_remove(Chromosome, ","))
+
+#bonferroni calculations
+sites <- read_tsv(file='/datasets/work/af-crown-rust/work/2020-02-28_GWAS/analysis/freebayes/12SD80/nine/diff_1/mlm_nocomp2.txt') %>%
+summarise(n())
+cut_off_12SD80 <- 0.05/pull(sites,1)
+#total number of sites for 12DS80 is 792835. Bonferroni cutoff:6.306482e-08
+sites <- read_tsv(file='/datasets/work/af-crown-rust/work/2020-02-28_GWAS/analysis/freebayes/12NC29/interim/nine/diff_1/mlm_nocomp2.txt') %>%
+  summarise(n())
+cut_off_12NC29 <- 0.05/pull(sites,1)
+#total number of sites for 12DS80 is 760492. Bonferroni cutoff:6.574691e-08
+
+#generate tables
+for(i in folders_nine_12SD80) {
+    sig_table(genome='12SD80',oat_diff=i,pval=cut_off_12SD80,nchrom=2,chroms=chroms_12SD80, '_nine.tsv')
+}
+
+for(i in folders_nine_12NC29) {
+  sig_table(genome='12NC29',oat_diff=i,pval=cut_off_12NC29,nchrom=2,chroms=chroms_12NC29, '_nine.tsv')
+}
+
+for(i in folders_bin_12NC29) {
+  sig_table(genome='12NC29',oat_diff=i,pval=cut_off_12NC29,nchrom=2,chroms=chroms_12NC29, '_binary.tsv')
+}
 for (i in folders_nine) {
   my_manhattan(paste(i,'/mlm_nocomp2.txt', sep=''), chroms, '12SD80')
 }
@@ -96,7 +135,7 @@ manhat_bw <- function(diff) {
     scale_colour_grey(start = 0.5,end = 0.6)
   return(plot)
 }
-
+792,835 
 #total number of sites is 760491. Bonferroni cutoff: 6.5747e-08
 0.05/760491
 
